@@ -33,9 +33,9 @@ def client():
         mock_future.result.return_value = "test-message-id"
         mock_pub.publish.return_value = mock_future
         mock_pub.topic_path.return_value = "projects/test/topics/test-topic"
-        
+
         from main import app
-        
+
         return TestClient(app)
 
 
@@ -64,10 +64,16 @@ class TestJSONIngestion:
         """Test successful JSON ingestion"""
         with patch("main.publish_to_pubsub") as mock_publish:
             mock_publish.return_value = "test-message-id"
-            
-            payload = {"tenant_id": "test_tenant", "log_id": "test_log_123", "text": "Test log message"}
 
-            response = client.post("/ingest", json=payload, headers={"Content-Type": "application/json"})
+            payload = {
+                "tenant_id": "test_tenant",
+                "log_id": "test_log_123",
+                "text": "Test log message",
+            }
+
+            response = client.post(
+                "/ingest", json=payload, headers={"Content-Type": "application/json"}
+            )
 
             assert response.status_code == 202
             data = response.json()
@@ -80,7 +86,9 @@ class TestJSONIngestion:
         """Test JSON without tenant_id returns 400"""
         payload = {"log_id": "test_log_123", "text": "Test log message"}
 
-        response = client.post("/ingest", json=payload, headers={"Content-Type": "application/json"})
+        response = client.post(
+            "/ingest", json=payload, headers={"Content-Type": "application/json"}
+        )
 
         assert response.status_code == 400
         assert "tenant_id required" in response.json()["detail"]
@@ -89,10 +97,12 @@ class TestJSONIngestion:
         """Test that log_id is auto-generated if not provided"""
         with patch("main.publish_to_pubsub") as mock_publish:
             mock_publish.return_value = "test-message-id"
-            
+
             payload = {"tenant_id": "test_tenant", "text": "Test log message"}
 
-            response = client.post("/ingest", json=payload, headers={"Content-Type": "application/json"})
+            response = client.post(
+                "/ingest", json=payload, headers={"Content-Type": "application/json"}
+            )
 
             assert response.status_code == 202
             data = response.json()
@@ -101,7 +111,11 @@ class TestJSONIngestion:
 
     def test_invalid_json(self, client):
         """Test invalid JSON returns 400"""
-        response = client.post("/ingest", data="invalid json {{{", headers={"Content-Type": "application/json"})
+        response = client.post(
+            "/ingest",
+            data="invalid json {{{",
+            headers={"Content-Type": "application/json"},
+        )
 
         assert response.status_code == 400
 
@@ -113,11 +127,13 @@ class TestTextIngestion:
         """Test successful text ingestion"""
         with patch("main.publish_to_pubsub") as mock_publish:
             mock_publish.return_value = "test-message-id"
-            
+
             text_data = "This is a test log message"
 
             response = client.post(
-                "/ingest", data=text_data, headers={"Content-Type": "text/plain", "X-Tenant-ID": "test_tenant"}
+                "/ingest",
+                data=text_data,
+                headers={"Content-Type": "text/plain", "X-Tenant-ID": "test_tenant"},
             )
 
             assert response.status_code == 202
@@ -130,7 +146,9 @@ class TestTextIngestion:
         """Test text without X-Tenant-ID header returns 400"""
         text_data = "This is a test log message"
 
-        response = client.post("/ingest", data=text_data, headers={"Content-Type": "text/plain"})
+        response = client.post(
+            "/ingest", data=text_data, headers={"Content-Type": "text/plain"}
+        )
 
         assert response.status_code == 400
         assert "X-Tenant-ID header required" in response.json()["detail"]
@@ -141,7 +159,9 @@ class TestContentTypeHandling:
 
     def test_unsupported_content_type(self, client):
         """Test unsupported content type returns 415"""
-        response = client.post("/ingest", data="test", headers={"Content-Type": "application/xml"})
+        response = client.post(
+            "/ingest", data="test", headers={"Content-Type": "application/xml"}
+        )
 
         assert response.status_code == 415
         assert "Unsupported content type" in response.json()["detail"]
@@ -153,7 +173,7 @@ class TestHelperFunctions:
     def test_normalize_json_with_text_field(self):
         """Test normalization of JSON with text field"""
         from main import normalize_to_internal_format
-        
+
         data = {"text": "Test message", "other": "field"}
         result = normalize_to_internal_format(data)
         assert result == "Test message"
@@ -161,7 +181,7 @@ class TestHelperFunctions:
     def test_normalize_json_without_text_field(self):
         """Test normalization of JSON without text field"""
         from main import normalize_to_internal_format
-        
+
         data = {"field1": "value1", "field2": "value2"}
         result = normalize_to_internal_format(data)
         assert isinstance(result, str)

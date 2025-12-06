@@ -18,7 +18,9 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 @pytest.fixture(scope="session", autouse=True)
 def mock_gcp_services():
     """Mock all GCP services for testing"""
-    with patch("google.cloud.firestore.Client"), patch("google.cloud.pubsub_v1.SubscriberClient"):
+    with patch("google.cloud.firestore.Client"), patch(
+        "google.cloud.pubsub_v1.SubscriberClient"
+    ):
         yield
 
 
@@ -89,11 +91,15 @@ class TestFirestoreStorage:
     def test_store_document_success(self, mock_db):
         """Test successful document storage"""
         from main import store_in_firestore
-        
+
         mock_collection = MagicMock()
         mock_db.collection.return_value = mock_collection
 
-        data = {"source": "json_upload", "original_text": "test", "modified_data": "test"}
+        data = {
+            "source": "json_upload",
+            "original_text": "test",
+            "modified_data": "test",
+        }
 
         result = store_in_firestore("test_tenant", "log_123", data)
 
@@ -104,7 +110,7 @@ class TestFirestoreStorage:
     def test_store_with_correct_path(self, mock_db):
         """Test that document is stored in correct path"""
         from main import store_in_firestore
-        
+
         mock_collection = MagicMock()
         mock_document = MagicMock()
         mock_sub_collection = MagicMock()
@@ -131,7 +137,7 @@ class TestMessageProcessing:
     def test_successful_message_processing(self, mock_redact, mock_process, mock_store):
         """Test successful end-to-end message processing"""
         from main import process_message
-        
+
         mock_redact.return_value = "User [REDACTED] accessed the system"
         mock_store.return_value = True
 
@@ -162,7 +168,7 @@ class TestMessageProcessing:
     def test_message_processing_failure(self, mock_process, mock_store):
         """Test message processing with failure"""
         from main import process_message
-        
+
         mock_store.side_effect = Exception("Storage failed")
 
         # Create mock message

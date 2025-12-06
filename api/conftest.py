@@ -18,10 +18,10 @@ def mock_gcp_publisher():
     with patch("google.cloud.pubsub_v1.PublisherClient") as mock_class:
         mock_publisher = MagicMock()
         mock_publisher.topic_path.return_value = "projects/test/topics/test-topic"
-        
+
         mock_future = MagicMock()
         mock_future.result.return_value = "mock-message-id"
         mock_publisher.publish.return_value = mock_future
-        
+
         mock_class.return_value = mock_publisher
         yield mock_publisher
