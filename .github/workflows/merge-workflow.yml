@@ -33,6 +33,33 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
+      - name: Ensure Artifact Registry repository exists
+        run: |
+          echo "📦 Checking Artifact Registry repository..."
+          
+          # Try to create repository (will fail if exists, which is fine)
+          gcloud artifacts repositories create data-processor \
+            --repository-format=docker \
+            --location=${{ env.GCP_REGION }} \
+            --description="Docker repository for data processor services" \
+            --project=${{ secrets.GCP_PROJECT_ID }} \
+            2>&1 | tee repo_creation.log
+          
+          # Check if creation succeeded or already exists
+          if grep -q "ALREADY_EXISTS" repo_creation.log || grep -q "Created repository" repo_creation.log; then
+            echo "✅ Repository ready (created or already exists)"
+          else
+            echo "::warning::Repository creation had unexpected output"
+            cat repo_creation.log
+          fi
+          
+          # Verify repository exists
+          gcloud artifacts repositories describe data-processor \
+            --location=${{ env.GCP_REGION }} \
+            --project=${{ secrets.GCP_PROJECT_ID }}
+          
+          echo "✅ Artifact Registry repository verified"
+
       - name: Configure Docker for Artifact Registry
         run: |
           gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev
@@ -44,7 +71,8 @@ jobs:
           gcloud builds submit \
             --tag ${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/data-processor/data-processor-api:${{ github.sha }} \
             --tag ${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/data-processor/data-processor-api:latest \
-            --timeout=10m
+            --timeout=10m \
+            --project=${{ secrets.GCP_PROJECT_ID }}
           echo "✅ API image built and pushed"
 
       - name: Build and Push Worker Image
@@ -54,14 +82,16 @@ jobs:
           gcloud builds submit \
             --tag ${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/data-processor/data-processor-worker:${{ github.sha }} \
             --tag ${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/data-processor/data-processor-worker:latest \
-            --timeout=10m
+            --timeout=10m \
+            --project=${{ secrets.GCP_PROJECT_ID }}
           echo "✅ Worker image built and pushed"
 
       - name: Verify Images in Registry
         run: |
           echo "📦 Verifying images in Artifact Registry..."
           gcloud artifacts docker images list \
-            ${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/data-processor
+            ${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/data-processor \
+            --project=${{ secrets.GCP_PROJECT_ID }}
           echo "✅ Images verified"
 
       - name: Build Summary
@@ -189,7 +219,8 @@ jobs:
         run: |
           API_URL=$(gcloud run services describe data-processor-api \
             --region=${{ env.GCP_REGION }} \
-            --format='value(status.url)')
+            --format='value(status.url)' \
+            --project=${{ secrets.GCP_PROJECT_ID }})
           echo "api_url=$API_URL" >> $GITHUB_OUTPUT
           echo "API_URL=$API_URL" >> $GITHUB_ENV
 
@@ -288,12 +319,14 @@ jobs:
           # Check API service
           gcloud run services describe data-processor-api \
             --region=${{ env.GCP_REGION }} \
-            --format="value(status.conditions[0].status)"
+            --format="value(status.conditions[0].status)" \
+            --project=${{ secrets.GCP_PROJECT_ID }}
           
           # Check Worker service
           gcloud run services describe data-processor-worker \
             --region=${{ env.GCP_REGION }} \
-            --format="value(status.conditions[0].status)"
+            --format="value(status.conditions[0].status)" \
+            --project=${{ secrets.GCP_PROJECT_ID }}
           
           echo "✅ All services healthy"
 
@@ -363,7 +396,8 @@ jobs:
             --service=data-processor-api \
             --region=${{ env.GCP_REGION }} \
             --format="value(name)" \
-            --limit=2 | tail -n1)
+            --limit=2 \
+            --project=${{ secrets.GCP_PROJECT_ID }} | tail -n1)
           echo "previous_api=$PREV_API" >> $GITHUB_OUTPUT
           
           # Get previous working revision for Worker
@@ -371,7 +405,8 @@ jobs:
             --service=data-processor-worker \
             --region=${{ env.GCP_REGION }} \
             --format="value(name)" \
-            --limit=2 | tail -n1)
+            --limit=2 \
+            --project=${{ secrets.GCP_PROJECT_ID }} | tail -n1)
           echo "previous_worker=$PREV_WORKER" >> $GITHUB_OUTPUT
         continue-on-error: true
 
