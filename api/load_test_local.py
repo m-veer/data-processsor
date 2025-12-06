@@ -4,12 +4,13 @@ Load test with mixed JSON and TXT requests
 Tests both Scenario 1 (JSON) and Scenario 2 (TXT) from requirements
 """
 
-import requests
+import random
 import time
 import uuid
-import random
 from concurrent.futures import ThreadPoolExecutor
 from statistics import mean, median
+
+import requests
 
 API_URL = "http://localhost:8080"
 TOTAL_REQUESTS = 1000

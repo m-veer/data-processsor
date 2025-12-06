@@ -3,15 +3,16 @@ FastAPI Ingestion Gateway
 Handles JSON and TXT payloads, publishes to Pub/Sub
 """
 
-from fastapi import FastAPI, Request, HTTPException, Header
+import json
+import logging
+import os
+import uuid
+from datetime import datetime
+from typing import Optional
+
+from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
 from google.cloud import pubsub_v1
-from typing import Optional
-import json
-import os
-import logging
-from datetime import datetime
-import uuid
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

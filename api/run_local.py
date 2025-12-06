@@ -3,8 +3,9 @@ Run API locally with mocked Pub/Sub
 No GCP credentials needed!
 """
 
+from unittest.mock import MagicMock, patch
+
 import uvicorn
-from unittest.mock import patch, MagicMock
 
 # Mock GCP Pub/Sub BEFORE importing main
 mock_publisher = MagicMock()

@@ -5,16 +5,17 @@ Includes HTTP health check endpoint for Cloud Run
 NOW WITH: Crash simulation that succeeds after 5 attempts
 """
 
-from google.cloud import pubsub_v1, firestore
-from concurrent.futures import TimeoutError
 import json
-import os
 import logging
-import time
+import os
 import re
+import time
+from concurrent.futures import TimeoutError
 from datetime import datetime
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from threading import Thread
-from http.server import HTTPServer, BaseHTTPRequestHandler
+
+from google.cloud import firestore, pubsub_v1
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

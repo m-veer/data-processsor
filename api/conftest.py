@@ -3,10 +3,11 @@ PyTest configuration and shared fixtures
 Mocks GCP dependencies for all tests
 """
 
-import pytest
-from unittest.mock import MagicMock, patch
-import sys
 import os
+import sys
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 # Ensure parent directory is in path
 sys.path.insert(0, os.path.dirname(__file__))
