@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - GCP_PROJECT_ID=local-test
+      - PUBSUB_TOPIC_ID=data-ingestion
+      - PORT=8080
+    command: uvicorn main:app --host 0.0.0.0 --port 8080 --reload
+
+  # Note: Worker won't work locally without real Pub/Sub
+  # But API can be tested standalone
