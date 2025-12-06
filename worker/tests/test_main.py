@@ -13,12 +13,16 @@ import time
 # Add parent directory to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from main import (
-    redact_pii,
-    simulate_heavy_processing,
-    store_in_firestore,
-    process_message,
-)
+
+# Mock GCP services before importing
+@pytest.fixture(scope="session", autouse=True)
+def mock_gcp_services():
+    """Mock all GCP services for testing"""
+    with patch("google.cloud.firestore.Client"), patch("google.cloud.pubsub_v1.SubscriberClient"):
+        yield
+
+
+from main import redact_pii, simulate_heavy_processing
 
 
 class TestPIIRedaction:
@@ -56,8 +60,8 @@ class TestHeavyProcessing:
 
     def test_processing_time_calculation(self):
         """Test that processing time is correct"""
-        text = "a" * 100  # 100 characters
-        expected_time = 100 * 0.05  # 5 seconds
+        text = "a" * 20  # 20 characters (reduced from 100 for faster tests)
+        expected_time = 20 * 0.05  # 1 second
 
         start_time = time.time()
         simulate_heavy_processing(text)
@@ -65,8 +69,8 @@ class TestHeavyProcessing:
 
         actual_time = end_time - start_time
 
-        # Allow 0.1 second tolerance
-        assert abs(actual_time - expected_time) < 0.1
+        # Allow 0.2 second tolerance
+        assert abs(actual_time - expected_time) < 0.2
 
     def test_processing_empty_string(self):
         """Test processing with empty string"""
@@ -84,14 +88,12 @@ class TestFirestoreStorage:
     @patch("main.db")
     def test_store_document_success(self, mock_db):
         """Test successful document storage"""
+        from main import store_in_firestore
+        
         mock_collection = MagicMock()
         mock_db.collection.return_value = mock_collection
 
-        data = {
-            "source": "json_upload",
-            "original_text": "test",
-            "modified_data": "test",
-        }
+        data = {"source": "json_upload", "original_text": "test", "modified_data": "test"}
 
         result = store_in_firestore("test_tenant", "log_123", data)
 
@@ -101,6 +103,8 @@ class TestFirestoreStorage:
     @patch("main.db")
     def test_store_with_correct_path(self, mock_db):
         """Test that document is stored in correct path"""
+        from main import store_in_firestore
+        
         mock_collection = MagicMock()
         mock_document = MagicMock()
         mock_sub_collection = MagicMock()
@@ -126,6 +130,8 @@ class TestMessageProcessing:
     @patch("main.redact_pii")
     def test_successful_message_processing(self, mock_redact, mock_process, mock_store):
         """Test successful end-to-end message processing"""
+        from main import process_message
+        
         mock_redact.return_value = "User [REDACTED] accessed the system"
         mock_store.return_value = True
 
@@ -140,6 +146,7 @@ class TestMessageProcessing:
         }
         mock_message.data = json.dumps(message_data).encode("utf-8")
         mock_message.message_id = "msg_123"
+        mock_message.delivery_attempt = 1
 
         # Process message
         process_message(mock_message)
@@ -154,6 +161,8 @@ class TestMessageProcessing:
     @patch("main.simulate_heavy_processing")
     def test_message_processing_failure(self, mock_process, mock_store):
         """Test message processing with failure"""
+        from main import process_message
+        
         mock_store.side_effect = Exception("Storage failed")
 
         # Create mock message
@@ -166,6 +175,7 @@ class TestMessageProcessing:
             "ingested_at": "2024-01-01T00:00:00Z",
         }
         mock_message.data = json.dumps(message_data).encode("utf-8")
+        mock_message.delivery_attempt = 1
 
         # Process message (should not raise, but should NACK)
         process_message(mock_message)

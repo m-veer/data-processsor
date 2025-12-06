@@ -57,8 +57,8 @@ jobs:
     
     strategy:
       matrix:
-        # service: [api, worker]
-        service: [api]
+        service: [api, worker]
+        # service: [api]
     
     steps:
       - name: Checkout code
