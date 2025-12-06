@@ -274,27 +274,27 @@ resource "google_service_account" "github_actions" {
   depends_on = [google_project_service.required_apis]
 }
 
-# IAM roles for GitHub Actions Service Account
-resource "google_project_iam_member" "github_actions_roles" {
-  for_each = toset([
-    "roles/run.admin",
-    "roles/storage.admin",
-    "roles/cloudbuild.builds.builder",
-    "roles/iam.serviceAccountUser",
-    "roles/pubsub.admin",
-    "roles/serviceusage.serviceUsageAdmin",
-    "roles/artifactregistry.admin",
-  ])
+// # IAM roles for GitHub Actions Service Account
+// resource "google_project_iam_member" "github_actions_roles" {
+//   for_each = toset([
+//     "roles/run.admin",
+//     "roles/storage.admin",
+//     "roles/cloudbuild.builds.builder",
+//     "roles/iam.serviceAccountUser",
+//     "roles/pubsub.admin",
+//     "roles/serviceusage.serviceUsageAdmin",
+//     "roles/artifactregistry.admin",
+//   ])
 
-  project = var.project_id
-  role    = each.value
-  member  = "serviceAccount:${google_service_account.github_actions.email}"
-}
+//   project = var.project_id
+//   role    = each.value
+//   member  = "serviceAccount:${google_service_account.github_actions.email}"
+// }
 
-# Service Account Key for GitHub Actions
-resource "google_service_account_key" "github_actions_key" {
-  service_account_id = google_service_account.github_actions.name
-}
+// # Service Account Key for GitHub Actions
+// resource "google_service_account_key" "github_actions_key" {
+//   service_account_id = google_service_account.github_actions.name
+// }
 
 # Cloud Monitoring Alert Policy
 resource "google_monitoring_alert_policy" "high_error_rate" {
