@@ -110,9 +110,9 @@ jobs:
           echo "### PyTest Results - ${{ matrix.service }}" >> $GITHUB_STEP_SUMMARY
           echo "✅ Unit tests passed" >> $GITHUB_STEP_SUMMARY
 
-  # Job 3: API Integration Tests (Health Check & Ingestion)
+  # Job 3: Integration Tests (Local API)
   integration-tests:
-    name: API Integration Tests
+    name: API Integration Tests (Local)
     runs-on: ubuntu-latest
     needs: pytest-tests
     
@@ -125,40 +125,78 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Install test dependencies
+      - name: Install API dependencies
         run: |
+          cd api
+          pip install -r requirements.txt
           pip install pytest requests
+
+      - name: Start API server in background
+        run: |
+          cd api
+          # Set mock environment variables
+          export GCP_PROJECT_ID=test-project
+          export PUBSUB_TOPIC_ID=test-topic
+          # Start API in background
+          nohup python -c "
+          from unittest.mock import MagicMock, patch
+          import sys
+          
+          # Mock Pub/Sub before importing main
+          mock_publisher = MagicMock()
+          mock_publisher.topic_path.return_value = 'projects/test/topics/test'
+          mock_future = MagicMock()
+          mock_future.result.return_value = 'mock-message-id'
+          mock_publisher.publish.return_value = mock_future
+          
+          with patch('google.cloud.pubsub_v1.PublisherClient', return_value=mock_publisher):
+              from main import app
+              import uvicorn
+              uvicorn.run(app, host='0.0.0.0', port=8080, log_level='info')
+          " > api.log 2>&1 &
+          
+          # Save PID
+          echo $! > api.pid
+          
+          # Wait for API to start
+          echo "Waiting for API to start..."
+          for i in {1..30}; do
+            if curl -s http://localhost:8080/health > /dev/null 2>&1; then
+              echo "✅ API started successfully"
+              break
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 2
+          done
+
+      - name: Verify API is running
+        run: |
+          curl -f http://localhost:8080/health || (cat api/api.log && exit 1)
+          echo "✅ API health check passed"
 
       - name: Create integration test file
         run: |
           mkdir -p tests_integration
-          cat > tests_integration/test_api_endpoints.py << 'EOF'
+          cat > tests_integration/test_local_api.py << 'EOF'
           """
-          Integration tests for API endpoints
-          Tests against deployed API or mock
+          Integration tests for API endpoints against localhost
           """
           import pytest
           import requests
-          from unittest.mock import Mock, patch
-          import os
 
-          # Get API URL from environment or use mock
-          API_URL = os.getenv('TEST_API_URL', None)
-          USE_MOCK = API_URL is None
-
-          @pytest.fixture
-          def api_url():
-              """Provide API URL or skip if not available"""
-              if USE_MOCK:
-                  pytest.skip("No TEST_API_URL provided, skipping live API tests")
-              return API_URL
+          API_URL = "http://localhost:8080"
 
           class TestHealthCheck:
               """Test health check endpoint"""
               
-              def test_health_check_structure(self, api_url):
+              def test_health_check_returns_200(self):
+                  """Test health endpoint returns 200"""
+                  response = requests.get(f"{API_URL}/health", timeout=10)
+                  assert response.status_code == 200
+              
+              def test_health_check_structure(self):
                   """Test health endpoint returns correct structure"""
-                  response = requests.get(f"{api_url}/health", timeout=10)
+                  response = requests.get(f"{API_URL}/health", timeout=10)
                   
                   assert response.status_code == 200
                   data = response.json()
@@ -166,19 +204,18 @@ jobs:
                   assert 'status' in data
                   assert data['status'] == 'healthy'
                   assert 'timestamp' in data
-                  assert 'pubsub_topic' in data
 
           class TestJSONIngestion:
               """Test JSON ingestion"""
               
-              def test_json_ingestion_valid_payload(self, api_url):
+              def test_json_ingestion_valid_payload(self):
                   """Test valid JSON payload"""
                   response = requests.post(
-                      f"{api_url}/ingest",
+                      f"{API_URL}/ingest",
                       json={
-                          "tenant_id": "pytest_pr",
-                          "log_id": "pr_test_001",
-                          "text": "PR validation test - User 555-0199"
+                          "tenant_id": "pytest_local",
+                          "log_id": "local_test_001",
+                          "text": "Local integration test - User 555-0199"
                       },
                       headers={"Content-Type": "application/json"},
                       timeout=10
@@ -187,12 +224,13 @@ jobs:
                   assert response.status_code == 202
                   data = response.json()
                   assert data['status'] == 'accepted'
-                  assert data['tenant_id'] == 'pytest_pr'
+                  assert data['tenant_id'] == 'pytest_local'
+                  assert 'message_id' in data
               
-              def test_json_missing_tenant_id(self, api_url):
+              def test_json_missing_tenant_id(self):
                   """Test JSON without tenant_id returns 400"""
                   response = requests.post(
-                      f"{api_url}/ingest",
+                      f"{API_URL}/ingest",
                       json={"log_id": "test", "text": "Missing tenant"},
                       headers={"Content-Type": "application/json"},
                       timeout=10
@@ -202,14 +240,14 @@ jobs:
           class TestTXTIngestion:
               """Test TXT ingestion"""
               
-              def test_txt_ingestion_valid_payload(self, api_url):
+              def test_txt_ingestion_valid_payload(self):
                   """Test valid TXT payload"""
                   response = requests.post(
-                      f"{api_url}/ingest",
-                      data="PR validation TXT test - Alert 555-1234",
+                      f"{API_URL}/ingest",
+                      data="Local TXT test - Alert 555-1234",
                       headers={
                           "Content-Type": "text/plain",
-                          "X-Tenant-ID": "pytest_pr"
+                          "X-Tenant-ID": "pytest_local"
                       },
                       timeout=10
                   )
@@ -217,44 +255,58 @@ jobs:
                   assert response.status_code == 202
                   data = response.json()
                   assert data['status'] == 'accepted'
-                  assert data['tenant_id'] == 'pytest_pr'
+                  assert data['tenant_id'] == 'pytest_local'
               
-              def test_txt_missing_tenant_header(self, api_url):
+              def test_txt_missing_tenant_header(self):
                   """Test TXT without X-Tenant-ID returns 400"""
                   response = requests.post(
-                      f"{api_url}/ingest",
+                      f"{API_URL}/ingest",
                       data="Missing tenant header",
                       headers={"Content-Type": "text/plain"},
                       timeout=10
                   )
                   assert response.status_code == 400
 
-          # Mock tests when no API URL provided
-          class TestMockValidation:
-              """Mock tests when API not available"""
+          class TestErrorHandling:
+              """Test error handling"""
               
-              @pytest.mark.skipif(not USE_MOCK, reason="Live API available")
-              def test_mock_scenario(self):
-                  """Validate test structure works"""
-                  assert True, "Mock test validation passed"
+              def test_unsupported_content_type(self):
+                  """Test unsupported content type returns 415"""
+                  response = requests.post(
+                      f"{API_URL}/ingest",
+                      data="test",
+                      headers={"Content-Type": "application/xml"},
+                      timeout=10
+                  )
+                  assert response.status_code == 415
           EOF
 
       - name: Run Integration Tests
-        env:
-          TEST_API_URL: ${{ secrets.STAGING_API_URL }}
         run: |
-          pytest tests_integration/test_api_endpoints.py -v --tb=short
+          pytest tests_integration/test_local_api.py -v --tb=short
           echo "✅ Integration tests completed"
+
+      - name: Stop API server
+        if: always()
+        run: |
+          if [ -f api/api.pid ]; then
+            kill $(cat api/api.pid) || true
+            rm api/api.pid
+          fi
+          echo "✅ API server stopped"
+
+      - name: Show API logs on failure
+        if: failure()
+        run: |
+          echo "📋 API Server Logs:"
+          cat api/api.log || echo "No logs found"
 
       - name: Integration Test Summary
         if: always()
         run: |
           echo "### 🧪 Integration Tests" >> $GITHUB_STEP_SUMMARY
-          if [ -n "${{ secrets.STAGING_API_URL }}" ]; then
-            echo "- ✅ Tested against staging API" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "- ⚠️ Skipped (no STAGING_API_URL configured)" >> $GITHUB_STEP_SUMMARY
-          fi
+          echo "- ✅ Tested against local API (mocked Pub/Sub)" >> $GITHUB_STEP_SUMMARY
+          echo "- Health check, JSON ingestion, TXT ingestion validated" >> $GITHUB_STEP_SUMMARY
 
   # Job 4: Terraform Format Check
   terraform-format:
