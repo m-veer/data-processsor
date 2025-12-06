@@ -48,21 +48,21 @@ output "github_actions_service_account" {
   value       = google_service_account.github_actions.email
 }
 
-output "github_actions_sa_key" {
-  description = "GitHub Actions service account key (base64 encoded)"
-  value       = google_service_account_key.github_actions_key.private_key
-  sensitive   = true
-}
+// output "github_actions_sa_key" {
+//   description = "GitHub Actions service account key (base64 encoded)"
+//   value       = google_service_account_key.github_actions_key.private_key
+//   sensitive   = true
+// }
 
-output "github_actions_key_instructions" {
-  description = "Instructions for using the GitHub Actions key"
-  value       = <<-EOT
-    To get the GitHub Actions service account key:
-    1. Run: terraform output -raw github_actions_sa_key | base64 -d
-    2. Copy the entire JSON output
-    3. Add it as GCP_SA_KEY secret in GitHub repository settings
-  EOT
-}
+// output "github_actions_key_instructions" {
+//   description = "Instructions for using the GitHub Actions key"
+//   value       = <<-EOT
+//     To get the GitHub Actions service account key:
+//     1. Run: terraform output -raw github_actions_sa_key | base64 -d
+//     2. Copy the entire JSON output
+//     3. Add it as GCP_SA_KEY secret in GitHub repository settings
+//   EOT
+// }
 
 output "test_commands" {
   description = "Commands to test your deployment"
