@@ -46,7 +46,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                     "status": "healthy",
                     "service": "data-processor-worker",
                     "subscription": SUBSCRIPTION_ID,
-                    "retry_counter_size": len(retry_counter),
+                    # "retry_counter_size": len(retry_counter),
                 }
             )
             self.wfile.write(response.encode())
