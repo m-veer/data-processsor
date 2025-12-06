@@ -1,30 +1,27 @@
 """
 PyTest configuration for worker tests
-Mocks GCP dependencies
+Mocks GCP dependencies BEFORE any imports
 """
 
-import os
 import sys
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-import pytest
+# Create mock modules BEFORE pytest collects tests
+mock_firestore = MagicMock()
+mock_pubsub = MagicMock()
 
-sys.path.insert(0, os.path.dirname(__file__))
+# Mock the google.cloud.firestore module
+sys.modules["google.cloud.firestore"] = mock_firestore
+sys.modules["google.cloud.pubsub_v1"] = mock_pubsub
 
+# Create mock clients
+mock_firestore.Client = MagicMock
+mock_pubsub.SubscriberClient = MagicMock
+mock_pubsub.types = MagicMock()
+mock_pubsub.types.FlowControl = MagicMock
 
-@pytest.fixture(scope="session", autouse=True)
-def mock_gcp_services():
-    """Mock Firestore and Pub/Sub for all tests"""
-    with patch("google.cloud.firestore.Client") as mock_firestore, patch(
-        "google.cloud.pubsub_v1.SubscriberClient"
-    ) as mock_subscriber:
-
-        # Mock Firestore client
-        mock_db = MagicMock()
-        mock_firestore.return_value = mock_db
-
-        # Mock Subscriber client
-        mock_sub = MagicMock()
-        mock_subscriber.return_value = mock_sub
-
-        yield {"firestore": mock_db, "subscriber": mock_sub}
+# Mock subscriber message type
+mock_message_class = MagicMock()
+mock_pubsub.subscriber = MagicMock()
+mock_pubsub.subscriber.message = MagicMock()
+mock_pubsub.subscriber.message.Message = mock_message_class

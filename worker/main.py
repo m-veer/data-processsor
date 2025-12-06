@@ -72,10 +72,13 @@ def redact_pii(text: str) -> str:
     """
     Simple PII redaction - redacts phone numbers
     Example: 555-0199 -> [REDACTED]
+    Example: 555-123-4567 -> [REDACTED]
     """
-    # Redact phone numbers (simple pattern)
-    redacted = re.sub(r"\b\d{3}-\d{4}\b", "[REDACTED]", text)
-    redacted = re.sub(r"\b\d{3}-\d{3}-\d{4}\b", "[REDACTED]", redacted)
+    # IMPORTANT: Apply longer pattern first!
+    # Redact XXX-XXX-XXXX format (10 digits with dashes)
+    redacted = re.sub(r"\b\d{3}-\d{3}-\d{4}\b", "[REDACTED]", text)
+    # Then redact XXX-XXXX format (7 digits with dash)
+    redacted = re.sub(r"\b\d{3}-\d{4}\b", "[REDACTED]", redacted)
     return redacted
 
 

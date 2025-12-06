@@ -7,24 +7,11 @@ import json
 import os
 import sys
 import time
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-# Add parent directory to path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
-
-# Mock GCP services before importing
-@pytest.fixture(scope="session", autouse=True)
-def mock_gcp_services():
-    """Mock all GCP services for testing"""
-    with patch("google.cloud.firestore.Client"), patch(
-        "google.cloud.pubsub_v1.SubscriberClient"
-    ):
-        yield
-
-
+# Import happens AFTER conftest.py mocks are in place
 from main import redact_pii, simulate_heavy_processing
 
 
@@ -63,7 +50,7 @@ class TestHeavyProcessing:
 
     def test_processing_time_calculation(self):
         """Test that processing time is correct"""
-        text = "a" * 20  # 20 characters (reduced from 100 for faster tests)
+        text = "a" * 20  # 20 characters for faster tests
         expected_time = 20 * 0.05  # 1 second
 
         start_time = time.time()
@@ -88,108 +75,111 @@ class TestHeavyProcessing:
 class TestFirestoreStorage:
     """Test Firestore storage functionality"""
 
-    @patch("main.db")
-    def test_store_document_success(self, mock_db):
+    def test_store_document_success(self):
         """Test successful document storage"""
-        from main import store_in_firestore
+        with patch("main.db") as mock_db:
+            from main import store_in_firestore
 
-        mock_collection = MagicMock()
-        mock_db.collection.return_value = mock_collection
+            mock_collection = MagicMock()
+            mock_db.collection.return_value = mock_collection
 
-        data = {
-            "source": "json_upload",
-            "original_text": "test",
-            "modified_data": "test",
-        }
+            data = {
+                "source": "json_upload",
+                "original_text": "test",
+                "modified_data": "test",
+            }
 
-        result = store_in_firestore("test_tenant", "log_123", data)
+            result = store_in_firestore("test_tenant", "log_123", data)
 
-        assert result is True
-        mock_db.collection.assert_called_with("tenants")
+            assert result is True
+            mock_db.collection.assert_called_with("tenants")
 
-    @patch("main.db")
-    def test_store_with_correct_path(self, mock_db):
+    def test_store_with_correct_path(self):
         """Test that document is stored in correct path"""
-        from main import store_in_firestore
+        with patch("main.db") as mock_db:
+            from main import store_in_firestore
 
-        mock_collection = MagicMock()
-        mock_document = MagicMock()
-        mock_sub_collection = MagicMock()
+            mock_collection = MagicMock()
+            mock_document = MagicMock()
+            mock_sub_collection = MagicMock()
 
-        mock_db.collection.return_value = mock_collection
-        mock_collection.document.return_value = mock_document
-        mock_document.collection.return_value = mock_sub_collection
+            mock_db.collection.return_value = mock_collection
+            mock_collection.document.return_value = mock_document
+            mock_document.collection.return_value = mock_sub_collection
 
-        data = {"test": "data"}
-        store_in_firestore("acme", "log_123", data)
+            data = {"test": "data"}
+            store_in_firestore("acme", "log_123", data)
 
-        # Verify path: tenants/acme/processed_logs/log_123
-        mock_db.collection.assert_called_with("tenants")
-        mock_collection.document.assert_called_with("acme")
-        mock_document.collection.assert_called_with("processed_logs")
+            # Verify path: tenants/acme/processed_logs/log_123
+            mock_db.collection.assert_called_with("tenants")
+            mock_collection.document.assert_called_with("acme")
+            mock_document.collection.assert_called_with("processed_logs")
 
 
 class TestMessageProcessing:
     """Test message processing workflow"""
 
-    @patch("main.store_in_firestore")
-    @patch("main.simulate_heavy_processing")
-    @patch("main.redact_pii")
-    def test_successful_message_processing(self, mock_redact, mock_process, mock_store):
+    def test_successful_message_processing(self):
         """Test successful end-to-end message processing"""
-        from main import process_message
+        with patch("main.store_in_firestore") as mock_store, patch(
+            "main.simulate_heavy_processing"
+        ) as mock_process, patch("main.redact_pii") as mock_redact:
 
-        mock_redact.return_value = "User [REDACTED] accessed the system"
-        mock_store.return_value = True
+            from main import process_message
 
-        # Create mock message
-        mock_message = MagicMock()
-        message_data = {
-            "tenant_id": "test_tenant",
-            "log_id": "test_123",
-            "text": "User 555-0199 accessed the system",
-            "source": "json_upload",
-            "ingested_at": "2024-01-01T00:00:00Z",
-        }
-        mock_message.data = json.dumps(message_data).encode("utf-8")
-        mock_message.message_id = "msg_123"
-        mock_message.delivery_attempt = 1
+            mock_redact.return_value = "User [REDACTED] accessed the system"
+            mock_store.return_value = True
 
-        # Process message
-        process_message(mock_message)
+            # Create mock message
+            mock_message = MagicMock()
+            message_data = {
+                "tenant_id": "test_tenant",
+                "log_id": "test_123",
+                "text": "User 555-0199 accessed the system",
+                "source": "json_upload",
+                "ingested_at": "2024-01-01T00:00:00Z",
+            }
+            mock_message.data = json.dumps(message_data).encode("utf-8")
+            mock_message.message_id = "msg_123"
+            mock_message.delivery_attempt = 1
 
-        # Verify processing steps
-        mock_process.assert_called_once()
-        mock_redact.assert_called_once()
-        mock_store.assert_called_once()
-        mock_message.ack.assert_called_once()
+            # Process message
+            process_message(mock_message)
 
-    @patch("main.store_in_firestore")
-    @patch("main.simulate_heavy_processing")
-    def test_message_processing_failure(self, mock_process, mock_store):
+            # Verify processing steps
+            mock_process.assert_called_once()
+            mock_redact.assert_called_once()
+            mock_store.assert_called_once()
+            mock_message.ack.assert_called_once()
+
+    def test_message_processing_failure(self):
         """Test message processing with failure"""
-        from main import process_message
+        with patch("main.store_in_firestore") as mock_store, patch(
+            "main.simulate_heavy_processing"
+        ):
 
-        mock_store.side_effect = Exception("Storage failed")
+            from main import process_message
 
-        # Create mock message
-        mock_message = MagicMock()
-        message_data = {
-            "tenant_id": "test_tenant",
-            "log_id": "test_123",
-            "text": "Test message",
-            "source": "json_upload",
-            "ingested_at": "2024-01-01T00:00:00Z",
-        }
-        mock_message.data = json.dumps(message_data).encode("utf-8")
-        mock_message.delivery_attempt = 1
+            mock_store.side_effect = Exception("Storage failed")
 
-        # Process message (should not raise, but should NACK)
-        process_message(mock_message)
+            # Create mock message
+            mock_message = MagicMock()
+            message_data = {
+                "tenant_id": "test_tenant",
+                "log_id": "test_123",
+                "text": "Test message",
+                "source": "json_upload",
+                "ingested_at": "2024-01-01T00:00:00Z",
+            }
+            mock_message.data = json.dumps(message_data).encode("utf-8")
+            mock_message.delivery_attempt = 1
 
-        # Verify message was NACKed
-        mock_message.nack.assert_called_once()
-        mock_message.ack.assert_not_called()
+            # Process message (should not raise, but should NACK)
+            process_message(mock_message)
+
+            # Verify message was NACKed
+            mock_message.nack.assert_called_once()
+            mock_message.ack.assert_not_called()
 
 
 if __name__ == "__main__":
