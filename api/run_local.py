@@ -13,7 +13,7 @@ mock_future.result.return_value = "local-mock-message-id"
 mock_publisher.publish.return_value = mock_future
 mock_publisher.topic_path.return_value = "projects/local/topics/data-ingestion"
 
-with patch('google.cloud.pubsub_v1.PublisherClient', return_value=mock_publisher):
+with patch("google.cloud.pubsub_v1.PublisherClient", return_value=mock_publisher):
     from main import app
 
 print("=" * 60)
@@ -26,9 +26,5 @@ print("=" * 60)
 
 if __name__ == "__main__":
     uvicorn.run(
-        "run_local:app",
-        host="0.0.0.0",
-        port=8080,
-        reload=True,
-        log_level="info"
+        "run_local:app", host="0.0.0.0", port=8080, reload=True, log_level="info"
     )
