@@ -15,10 +15,7 @@ terraform {
 
   # Optional: Store state in GCS bucket for team collaboration
   # Uncomment after creating the bucket
-  backend "gcs" {
-    bucket = "data-processor-480019-terraform-state"
-    prefix = "terraform/state"
-  }
+  backend "gcs" {}
 }
 
 provider "google" {
