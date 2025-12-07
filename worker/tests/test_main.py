@@ -10,6 +10,7 @@ import time
 from unittest.mock import MagicMock, patch
 
 import pytest
+
 # Import happens AFTER conftest.py mocks are in place
 from main import redact_pii, simulate_heavy_processing
 
