@@ -81,7 +81,7 @@ def redact_pii(text: str) -> str:
     # redacted = re.sub(r"\b\d{3}-\d{4}\b", "[REDACTED]", redacted)
 
     PHONE_REGEX = re.compile(
-    r"""
+        r"""
     (                           # Main phone patterns
         (?:\+?\d{1,3}[\s.\-]?)?       # optional country code, e.g. +1, 1, +91-
         (?:\(?\d{3}\)?[\s.\-]?)       # area code with or without parentheses
@@ -91,7 +91,7 @@ def redact_pii(text: str) -> str:
     |
     (?:\b\d{3}[\s.\-]\d{4}\b)         # 7-digit local: 555-0199 or 555.0199
     """,
-    re.VERBOSE,
+        re.VERBOSE,
     )
 
     # Plain 10-digit numbers like 5551234567
