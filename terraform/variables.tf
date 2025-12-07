@@ -65,7 +65,7 @@ variable "api_min_instances" {
 variable "api_max_instances" {
   description = "Maximum number of API instances"
   type        = number
-  default     = 100
+  default     = 20
 }
 
 variable "worker_min_instances" {
@@ -77,7 +77,7 @@ variable "worker_min_instances" {
 variable "worker_max_instances" {
   description = "Maximum number of Worker instances"
   type        = number
-  default     = 50
+  default     = 10
 }
 
 variable "api_cpu" {
