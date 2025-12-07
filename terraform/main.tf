@@ -67,7 +67,18 @@ resource "google_pubsub_subscription" "data_ingestion_sub" {
     maximum_backoff = "600s"
   }
 
+  # 👇 NEW: Dead-letter config (this makes delivery_attempt available)
+  dead_letter_policy {
+    dead_letter_topic     = google_pubsub_topic.data_ingestion_dlq.id
+    max_delivery_attempts = 20
+  }
+
   depends_on = [google_project_service.required_apis]
+}
+
+# Pub/Sub Dead Letter Topic for failed messages
+resource "google_pubsub_topic" "data_ingestion_dlq" {
+  name = "${var.pubsub_topic_name}-dlq" # "data-ingestion-dlq" by default
 }
 
 # Service Account for Cloud Run Services

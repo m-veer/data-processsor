@@ -69,16 +69,45 @@ def start_health_check_server():
 
 
 def redact_pii(text: str) -> str:
+    # """
+    # Simple PII redaction - redacts phone numbers
+    # Example: 555-0199 -> [REDACTED]
+    # Example: 555-123-4567 -> [REDACTED]
+    # """
+    # # IMPORTANT: Apply longer pattern first!
+    # # Redact XXX-XXX-XXXX format (10 digits with dashes)
+    # redacted = re.sub(r"\b\d{3}-\d{3}-\d{4}\b", "[REDACTED]", text)
+    # # Then redact XXX-XXXX format (7 digits with dash)
+    # redacted = re.sub(r"\b\d{3}-\d{4}\b", "[REDACTED]", redacted)
+
+    PHONE_REGEX = re.compile(
+        r"""
+    (                           # Main phone patterns
+        (?:\+?\d{1,3}[\s.\-]?)?       # optional country code, e.g. +1, 1, +91-
+        (?:\(?\d{3}\)?[\s.\-]?)       # area code with or without parentheses
+        \d{3}[\s.\-]?\d{4}            # 3 + 4 digits (local number)
+        (?:\s*(?:ext\.?|x)\s*\d{1,5})?  # optional extension like ext 1234 or x1234
+    )
+    |
+    (?:\b\d{3}[\s.\-]\d{4}\b)         # 7-digit local: 555-0199 or 555.0199
+    """,
+        re.VERBOSE,
+    )
+
+    # Plain 10-digit numbers like 5551234567
+    PHONE_DIGITS_ONLY_REGEX = re.compile(r"\b\d{10}\b")
+
     """
-    Simple PII redaction - redacts phone numbers
-    Example: 555-0199 -> [REDACTED]
-    Example: 555-123-4567 -> [REDACTED]
+    Redact common phone number patterns from text.
+    Covers:
+      - +1 555 123 4567 / +91-22-1234-5678 (simple intl)
+      - (555) 123-4567
+      - 555-123-4567 / 555.123.4567 / 555 123 4567
+      - 555-0199
+      - 5551234567
     """
-    # IMPORTANT: Apply longer pattern first!
-    # Redact XXX-XXX-XXXX format (10 digits with dashes)
-    redacted = re.sub(r"\b\d{3}-\d{3}-\d{4}\b", "[REDACTED]", text)
-    # Then redact XXX-XXXX format (7 digits with dash)
-    redacted = re.sub(r"\b\d{3}-\d{4}\b", "[REDACTED]", redacted)
+    redacted = PHONE_REGEX.sub("[REDACTED]", text)
+    redacted = PHONE_DIGITS_ONLY_REGEX.sub("[REDACTED]", redacted)
     return redacted
 
 
