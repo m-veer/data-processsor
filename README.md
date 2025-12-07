@@ -37,7 +37,9 @@ terraform apply tfplan
 - Merge to main → merge workflow builds Docker images, pushes to Artifact Registry, and deploys Cloud Run + Pub/Sub + Firestore via Terraform.
 - Grab the API Cloud Run URL from the merge workflow summary and start ingesting logs.
 
-📖 Introduction
+---
+
+## 📖 Introduction
 This project is designed as a realistic backend / DevOps portfolio piece:
 - Cloud-native, serverless-first architecture
 - Infrastructure as Code with Terraform
@@ -50,8 +52,10 @@ You get:
 2. Asynchronous worker with PII redaction & heavy-processing simulation
 3. Dead-Letter Queue (DLQ) routing using Pub/Sub delivery attempts
 
-🏗 Architecture Overview
-High-Level Flow
+---
+
+## 🏗 Architecture Overview
+# High-Level Flow
 
            ┌────────────────────────────┐
            │      Client / Postman      │
@@ -93,16 +97,17 @@ High-Level Flow
            │ data-ingestion-dlq           │
            └──────────────────────────────┘
 
-✨ Core Features
+---
 
-1️⃣ Unified Ingestion API
+## ✨ Core Features
+# 1️⃣ Unified Ingestion API
 - OST /ingest
 - Accepts:
     - application/json with tenant_id, optional log_id, text
     - text/plain with X-Tenant-ID header
 - Normalizes all input into a single internal JSON structure and publishes to Pub/Sub.
 
-2️⃣ Asynchronous Worker with Crash Simulation
+# 2️⃣ Asynchronous Worker with Crash Simulation
 - Subscribes to data-ingestion Pub/Sub topic.
 - Simulates heavy processing (sleep based on text length).
 - Redacts phone numbers from text (XXX-XXX-XXXX, XXX-XXXX, etc.).
@@ -110,13 +115,15 @@ High-Level Flow
 - Persists processed logs to Firestore:
     - tenants/{tenant_id}/processed_logs/{log_id}
 
-3️⃣ Reliability with Dead-Letter Queue (DLQ)
+# 3️⃣ Reliability with Dead-Letter Queue (DLQ)
 - Terraform configures:
     - DLQ topic: data-ingestion-dlq
     - Subscription settings: max_delivery_attempts = 20
 - Messages that keep failing (e.g., bugs, malformed data) are automatically moved to DLQ for inspection / replay.
 
-🧰 Tech Stack
+---
+
+## 🧰 Tech Stack
 - Runtime & Services
     - Python (FastAPI + Pub/Sub client + Firestore client)
     - Google Cloud Run (API & Worker)
@@ -140,8 +147,11 @@ High-Level Flow
   - Makefile helpers
   - Shell scripts (format_check.sh, log_tail.sh, test_crash_recovery.sh, etc.)
 
-📁 Project Structure
-.
+---
+
+## 📁 Project Structure
+
+```
 ├── .github/
 │   └── workflows/
 │       ├── deploy-api.yml          # Deploy only API service
@@ -200,8 +210,11 @@ High-Level Flow
 ├── Makefile
 ├── README.md                       # You are here
 └── Todo.txt                        # Future polish & task list
+```
 
-👨‍💻 New Developer Setup
+---
+
+## 👨‍💻 New Developer Setup
 This is the “I just joined the team, what do I do?” section.
 
 1. Install prerequisites
@@ -234,11 +247,12 @@ Edit terraform/terraform.tfvars (example):
 - Merge to main → automatic build & deploy.
 
 6. Run tests locally
-- # From repo root
 - pytest api/tests
 - pytest worker/tests
 
-🧪 Local Development & Testing
+---
+
+## 🧪 Local Development & Testing
 - Run API locally
     - cd api
     - python -m venv venv
@@ -261,7 +275,9 @@ Edit terraform/terraform.tfvars (example):
 - Run everything with Docker Compose
     - docker-compose -f docker-compose.local.yml up --build
 
-🌐 API Usage
+---
+
+## 🌐 API Usage
 1. JSON Ingestion
     - Request
         - POST /ingest HTTP/1.1
@@ -299,7 +315,9 @@ Edit terraform/terraform.tfvars (example):
             "message": "Data queued for processing"
         - }
 
-🧹 PII Redaction
+---
+
+## 🧹 PII Redaction
 - worker/main.py uses redact_pii(text: str) -> str to scrub phone numbers.
 
 Handled patterns include:
@@ -312,7 +330,9 @@ You can extend this function to cover:
 - Credit card patterns
 - Custom tenant-specific rules
 
-🔁 Crash Simulation & Recovery
+---
+
+## 🔁 Crash Simulation & Recovery
 - Messages whose text contains crash_test are treated specially:
 delivery_attempt = message.delivery_attempt or 1
 
@@ -338,7 +358,9 @@ delivery_attempt = message.delivery_attempt or 1
         - ./log_tail.sh worker   # Tail Cloud Run worker logs
         - ./test_crash_recovery.sh
 
-☠️ Dead-Letter Queue (DLQ) Behavior
+---
+
+## ☠️ Dead-Letter Queue (DLQ) Behavior
 Terraform configures:
 - google_pubsub_topic.data_ingestion_dlq (data-ingestion-dlq)
 - google_pubsub_subscription.data_ingestion_sub with:
@@ -354,7 +376,9 @@ Terraform configures:
         --auto-ack \
         --limit=10
 
-🧱 Terraform Notes
+---
+
+## 🧱 Terraform Notes
 - Initialize
     - cd terraform
     - terraform init
@@ -373,7 +397,9 @@ Terraform configures:
 
 - For deeper details, see TERRAFORM_SETUP.md.
 
-🚀 Future Scope
+---
+
+## 🚀 Future Scope
 - Some planned / potential enhancements for this project:
 - Platform & Architecture
     - Multi-region deployments with global load balancing for API and Worker.
@@ -400,7 +426,9 @@ Terraform configures:
     - Scaffold scripts to create new environments (dev / staging / prod) from templates.
     - More test coverage for edge cases (PII patterns, DLQ routing, retry behavior).
 
-🤝 Contributing
+---
+
+## 🤝 Contributing
 1. Fork the repository.
 2. Create a feature branch:
     - git checkout -b feature/my-change
@@ -411,12 +439,9 @@ Terraform configures:
 
 - PRs automatically run the PR validation workflow (tests + Terraform checks).
 
-👤 Author
+---
+
+## 👤 Author
 - Mayur Veer
     - GitHub: @m-veer
     - LinkedIn: linkedin.com/in/mayur-veer
-
-<div align="center">
-Built as a production-style backend & DevOps showcase.
-Logs in, insights out.
-</div> ``` ::contentReference[oaicite:0]{index=0}
