@@ -67,7 +67,7 @@ resource "google_pubsub_subscription" "data_ingestion_sub" {
     maximum_backoff = "600s"
   }
 
-  # 👇 NEW: Dead-letter config (this makes delivery_attempt available)
+  # Dead-letter config (this makes delivery_attempt available)
   dead_letter_policy {
     dead_letter_topic     = google_pubsub_topic.data_ingestion_dlq.id
     max_delivery_attempts = 20
